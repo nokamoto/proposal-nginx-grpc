@@ -1,0 +1,61 @@
+version: '3'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - 9000:9000
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf/nginx.conf:ro
+    depends_on:
+      - server
+    ports:
+      - 80:8080
+      - 8081:8081
+      - 8082:8082
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    depends_on:
+      - nginx
+  nginx-exporter:
+      image: nginx/nginx-prometheus-exporter:0.1.0
+      command: -nginx.scrape-uri http://nginx:8081/stub_status
+      depends_on:
+        - nginx
+      ports:
+        - 9113:9113
+  nginx-vts-exporter:
+      image: sophos/nginx-vts-exporter:latest
+      environment:
+        NGINX_STATUS: http://nginx:8082/status/format/json
+        METRICS_ADDR: :9114
+      depends_on:
+        - nginx
+      ports:
+        - 9114:9114
+  prom:
+    image: prom/prometheus:v2.4.3
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - nginx-exporter
+      - nginx-vts-exporter
+    ports:
+      - 9090:9090
+  grafana:
+    image: grafana/grafana:5.3.1
+    volumes:
+      - ./datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml:ro
+      - ./dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml:ro
+      - ./vts-stats.json:/var/lib/grafana/dashboards/vts-stats.json:ro
+    depends_on:
+      - prom
+    ports:
+      - 3000:3000

@@ -1,29 +1,21 @@
 version: '3'
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile.server
+    image: nokamoto13/example-ping-service-server:v0
     ports:
       - 9000:9000
   nginx:
     build:
       context: .
-      dockerfile: Dockerfile.nginx
+      dockerfile: Dockerfile
     volumes:
       - ./nginx.conf:/etc/nginx/conf/nginx.conf:ro
     depends_on:
       - server
     ports:
-      - 80:8080
+      - 8080:8080
       - 8081:8081
       - 8082:8082
-  client:
-    build:
-      context: .
-      dockerfile: Dockerfile.client
-    depends_on:
-      - nginx
   nginx-exporter:
       image: nginx/nginx-prometheus-exporter:0.1.0
       command: -nginx.scrape-uri http://nginx:8081/stub_status
